@@ -62,32 +62,45 @@ pip install -e .
 
 ```python
 import asyncio
-from edgex_sdk import Client, OrderSide, OrderType
+import os
+from edgex_sdk import Client, OrderSide
 
 async def main():
     # Create a new client
     client = Client(
         base_url="https://testnet.edgex.exchange",
-        account_id=12345,
-        stark_private_key="your-stark-private-key"
+        account_id=542069824235241782,  # Your account ID
+        stark_private_key="your-stark-private-key"  # Your private key
     )
 
     # Get server time
     server_time = await client.get_server_time()
     print(f"Server Time: {server_time}")
 
+    # Get exchange metadata
+    metadata = await client.get_metadata()
+    print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
+
     # Get account assets
     assets = await client.get_account_asset()
     print(f"Account Assets: {assets}")
 
-    # Create a limit order
-    order = await client.create_limit_order(
-        contract_id="BTC-USDT",
-        size="0.001",
-        price="30000",
-        side=OrderSide.BUY
-    )
-    print(f"Order created: {order}")
+    # Get account positions
+    positions = await client.get_account_positions()
+    print(f"Account Positions: {positions}")
+
+    # Get 24-hour market data
+    quote = await client.get_24_hour_quote("BNB-USDT")
+    print(f"BNB-USDT Price: {quote}")
+
+    # Create a limit order (uncomment to place real order)
+    # order = await client.create_limit_order(
+    #     contract_id="BNB-USDT",
+    #     size="0.01",
+    #     price="600.00",
+    #     side=OrderSide.BUY
+    # )
+    # print(f"Order created: {order}")
 
 # Run the async function
 asyncio.run(main())
@@ -169,24 +182,41 @@ The SDK currently supports the following API modules:
 The SDK provides a WebSocket manager for handling real-time data:
 
 ```python
+import asyncio
 from edgex_sdk import WebSocketManager
 
-# Create a WebSocket manager (uses StarkExSigningAdapter by default)
-ws_manager = WebSocketManager(
-    base_url="wss://quote-testnet.edgex.exchange",
-    account_id=12345,
-    stark_pri_key="your-stark-private-key"
-)
+async def main():
+    # Create a WebSocket manager
+    ws_manager = WebSocketManager(
+        base_url="wss://quote-testnet.edgex.exchange",
+        account_id=542069824235241782,
+        stark_pri_key="your-stark-private-key"
+    )
 
-# Define message handlers
-def ticker_handler(message):
-    print(f"Ticker Update: {message}")
+    # Define message handlers
+    def ticker_handler(message):
+        print(f"Ticker Update: {message}")
 
-# Connect to public WebSocket
-ws_manager.connect_public()
+    def kline_handler(message):
+        print(f"K-line Update: {message}")
 
-# Subscribe to ticker updates
-ws_manager.subscribe_ticker("BTC-USDT", ticker_handler)
+    # Connect to public WebSocket for market data
+    ws_manager.connect_public()
+
+    # Subscribe to real-time updates
+    ws_manager.subscribe_ticker("BNB-USDT", ticker_handler)
+    ws_manager.subscribe_kline("BNB-USDT", "1m", kline_handler)
+
+    # Connect to private WebSocket for account updates
+    ws_manager.connect_private()
+
+    # Wait for updates
+    await asyncio.sleep(30)
+
+    # Disconnect all connections
+    ws_manager.disconnect_all()
+
+asyncio.run(main())
 ```
 
 ## Signing Adapters
@@ -223,27 +253,49 @@ client = Client(
 
 The SDK includes the following signing adapters:
 
-- **StarkExSigningAdapter** (default): Full implementation using StarkWare cryptographic operations
-- **MockSigningAdapter**: A mock implementation for testing that doesn't perform actual cryptographic operations
+- **StarkExSigningAdapter** (default): Full implementation using StarkWare cryptographic operations for production use
 
-You can also create your own signing adapter by implementing the `SigningAdapter` interface.
+You can also create your own signing adapter by implementing the `SigningAdapter` interface if you need custom cryptographic operations.
 
 ## Error Handling
 
 The SDK provides proper error handling for API requests:
 
 ```python
-try:
-    # Create a limit order
-    order = await client.create_limit_order(
-        contract_id="BTC-USDT",
-        size="0.001",
-        price="30000",
-        side=OrderSide.BUY
+import asyncio
+from edgex_sdk import Client, OrderSide
+
+async def main():
+    client = Client(
+        base_url="https://testnet.edgex.exchange",
+        account_id=542069824235241782,
+        stark_private_key="your-stark-private-key"
     )
-    print(f"Order created: {order}")
-except ValueError as e:
-    print(f"Failed to create order: {str(e)}")
+
+    try:
+        # Create a limit order
+        order = await client.create_limit_order(
+            contract_id="BNB-USDT",
+            size="0.01",
+            price="600.00",
+            side=OrderSide.BUY
+        )
+        print(f"Order created: {order}")
+
+        # Cancel the order
+        from edgex_sdk import CancelOrderParams
+        cancel_params = CancelOrderParams(
+            order_id=order.get("data", {}).get("orderId")
+        )
+        cancel_result = await client.cancel_order(cancel_params)
+        print(f"Order cancelled: {cancel_result}")
+
+    except ValueError as e:
+        print(f"Failed to create/cancel order: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
+
+asyncio.run(main())
 ```
 
 ## Pagination
@@ -251,43 +303,182 @@ except ValueError as e:
 Many API endpoints support pagination:
 
 ```python
-from edgex_sdk import GetActiveOrderParams
+import asyncio
+from edgex_sdk import Client, GetActiveOrderParams
 
-# Create pagination parameters
-params = GetActiveOrderParams(
+async def main():
+    client = Client(
+        base_url="https://testnet.edgex.exchange",
+        account_id=542069824235241782,
+        stark_private_key="your-stark-private-key"
+    )
+
+    # Create pagination parameters
+    params = GetActiveOrderParams(
+        size="10",
+        offset_data=""
+    )
+
+    # Get active orders
+    orders = await client.get_active_orders(params)
+    print(f"Active orders: {orders}")
+
+    # Get next page if available
+    if orders.get("data", {}).get("hasNext"):
+        params.offset_data = orders.get("data", {}).get("offsetData")
+        next_page = await client.get_active_orders(params)
+        print(f"Next page: {next_page}")
+
+asyncio.run(main())
+```
+
+## API Examples
+
+### Market Data
+
+```python
+from edgex_sdk import Client, GetKLineParams, GetOrderBookDepthParams
+
+# Get 24-hour market quotes
+quote = await client.get_24_hour_quote("BNB-USDT")
+print(f"Current price: {quote}")
+
+# Get K-line data
+kline_params = GetKLineParams(
+    contract_id="BNB-USDT",
+    interval="1m",
+    size="10"
+)
+klines = await client.quote.get_k_line(kline_params)
+print(f"K-lines: {klines}")
+
+# Get order book depth
+depth_params = GetOrderBookDepthParams(
+    contract_id="BNB-USDT",
+    limit=10
+)
+depth = await client.quote.get_order_book_depth(depth_params)
+print(f"Order book: {depth}")
+```
+
+### Account Management
+
+```python
+# Get account assets
+assets = await client.get_account_asset()
+print(f"Account assets: {assets}")
+
+# Get account positions
+positions = await client.get_account_positions()
+print(f"Positions: {positions}")
+
+# Get position transactions
+from edgex_sdk import GetPositionTransactionPageParams
+tx_params = GetPositionTransactionPageParams(
     size="10",
     offset_data=""
 )
-
-# Get active orders
-orders = await client.get_active_orders(params)
-
-# Get next page
-if orders.get("data", {}).get("hasNext"):
-    params.offset_data = orders.get("data", {}).get("offsetData")
-    next_page = await client.get_active_orders(params)
+transactions = await client.account.get_position_transaction_page(tx_params)
+print(f"Transactions: {transactions}")
 ```
 
-## Examples
+### Order Management
 
-For detailed examples of each API endpoint, please refer to the [examples](examples) directory.
+```python
+from edgex_sdk import OrderSide, CreateOrderParams, CancelOrderParams
+
+# Create a limit order
+order = await client.create_limit_order(
+    contract_id="BNB-USDT",
+    size="0.01",
+    price="600.00",
+    side=OrderSide.BUY
+)
+print(f"Order created: {order}")
+
+# Get maximum order size
+max_size = await client.get_max_order_size("BNB-USDT", 600.00)
+print(f"Max order size: {max_size}")
+
+# Cancel an order
+cancel_params = CancelOrderParams(
+    order_id=order.get("data", {}).get("orderId")
+)
+cancel_result = await client.cancel_order(cancel_params)
+print(f"Order cancelled: {cancel_result}")
+```
+
+For more detailed examples, please refer to the [examples](examples) directory.
 
 ## Testing
 
-To run the tests:
+The SDK includes comprehensive test coverage with multiple test suites:
 
+### Unit Tests
 ```bash
+# Run unit tests (no API credentials required)
+python -m pytest tests/test_client.py tests/test_starkex_signing_adapter.py -v
+```
+
+### Public API Tests
+```bash
+# Run public endpoint tests (no authentication required)
+python run_public_tests.py
+```
+
+### Mock Integration Tests
+```bash
+# Run mock tests (test structure without real API calls)
+python run_mock_tests.py
+```
+
+### Full Integration Tests
+```bash
+# Run full integration tests (requires real API credentials)
+python run_integration_tests.py
+```
+
+### All Tests
+```bash
+# Run all available tests
 python run_tests.py
 ```
 
+For more testing information, see [TESTING.md](TESTING.md).
+
 ## Environment Variables
 
-For testing, the following environment variables can be set:
+For testing and development, you can set the following environment variables or create a `.env` file:
 
-- `EDGEX_BASE_URL`: Base URL for HTTP API endpoints (e.g., "https://api-testnet.edgex.exchange")
-- `EDGEX_WS_URL`: Base URL for WebSocket endpoints (e.g., "wss://quote-testnet.edgex.exchange")
-- `EDGEX_ACCOUNT_ID`: Your account ID
-- `EDGEX_STARK_PRIVATE_KEY`: Your stark private key
+```bash
+# API Configuration
+EDGEX_BASE_URL=https://testnet.edgex.exchange
+EDGEX_WS_URL=wss://quote-testnet.edgex.exchange
+
+# Account Credentials
+EDGEX_ACCOUNT_ID=542069824235241782
+EDGEX_STARK_PRIVATE_KEY=your-stark-private-key
+
+# Signing Configuration
+EDGEX_SIGNING_ADAPTER=starkex
+```
+
+Then load them in your code:
+
+```python
+import os
+from dotenv import load_dotenv
+from edgex_sdk import Client
+
+# Load environment variables from .env file
+load_dotenv()
+
+client = Client(
+    base_url=os.getenv("EDGEX_BASE_URL"),
+    account_id=int(os.getenv("EDGEX_ACCOUNT_ID")),
+    stark_private_key=os.getenv("EDGEX_STARK_PRIVATE_KEY")
+)
+```
 
 ## Documentation
 
