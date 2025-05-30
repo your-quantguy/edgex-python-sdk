@@ -8,7 +8,7 @@ setup(
     author_email="info@edgex.exchange",
     packages=find_packages(),
     install_requires=[
-        "requests>=2.25.0",
+        "aiohttp>=3.8.0",
         "websocket-client>=1.0.0",
         "pydantic>=1.8.0",
         "python-dotenv>=0.15.0",

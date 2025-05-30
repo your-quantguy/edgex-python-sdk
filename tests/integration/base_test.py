@@ -31,22 +31,8 @@ class BaseIntegrationTest(unittest.TestCase):
                 f"Skipping integration tests because the following environment variables are not set: {', '.join(missing_vars)}"
             )
 
-        # Create client (uses StarkEx signing adapter by default)
-        cls.client = Client(
-            base_url=BASE_URL,
-            account_id=ACCOUNT_ID,
-            stark_private_key=STARK_PRIVATE_KEY
-        )
-
         # Log which signing adapter is being used
         logger.info("Using StarkEx signing adapter (default)")
-
-        # Create WebSocket manager (uses StarkEx signing adapter by default)
-        cls.ws_manager = WebSocketManager(
-            base_url=WS_URL,
-            account_id=ACCOUNT_ID,
-            stark_pri_key=STARK_PRIVATE_KEY
-        )
 
         # Store test data
         cls.test_data = {}
@@ -54,9 +40,7 @@ class BaseIntegrationTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Tear down the test class."""
-        # Close WebSocket connections
-        if hasattr(cls, "ws_manager"):
-            cls.ws_manager.disconnect_all()
+        pass  # No class-level cleanup needed
 
     def run_async(self, coro):
         """
@@ -68,7 +52,7 @@ class BaseIntegrationTest(unittest.TestCase):
         Returns:
             Any: The result of the coroutine
         """
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return self.loop.run_until_complete(coro)
 
     def setUp(self):
         """Set up the test."""
@@ -76,8 +60,29 @@ class BaseIntegrationTest(unittest.TestCase):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
+        # Create a fresh client for each test method
+        self.client = Client(
+            base_url=BASE_URL,
+            account_id=ACCOUNT_ID,
+            stark_private_key=STARK_PRIVATE_KEY
+        )
+
+        # Create WebSocket manager for each test
+        self.ws_manager = WebSocketManager(
+            base_url=WS_URL,
+            account_id=ACCOUNT_ID,
+            stark_pri_key=STARK_PRIVATE_KEY
+        )
+
     def tearDown(self):
         """Tear down the test."""
+        # Close client and WebSocket connections
+        if hasattr(self, 'client'):
+            self.run_async(self.client.close())
+
+        if hasattr(self, 'ws_manager'):
+            self.ws_manager.disconnect_all()
+
         # Close the event loop
         self.loop.close()
 

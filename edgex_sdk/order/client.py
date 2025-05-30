@@ -1,36 +1,29 @@
-import json
 import time
 from decimal import Decimal
 from typing import Dict, Any, Optional, List
 
-import requests
-
-from ..internal.client import Client as InternalClient
+from ..internal.async_client import AsyncClient
 from .types import (
     CreateOrderParams,
     CancelOrderParams,
     GetActiveOrderParams,
     OrderFillTransactionParams,
     TimeInForce,
-    OrderType,
-    ResponseCode
+    OrderType
 )
 
 
 class Client:
     """Client for order-related API endpoints."""
 
-    def __init__(self, internal_client: InternalClient, session: requests.Session):
+    def __init__(self, async_client: AsyncClient):
         """
         Initialize the order client.
 
         Args:
-            internal_client: The internal client for common functionality
-            session: The HTTP session for making requests
+            async_client: The async client for common functionality
         """
-        self.internal_client = internal_client
-        self.session = session
-        self.base_url = internal_client.base_url
+        self.async_client = async_client
 
     async def create_order(self, params: CreateOrderParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -86,7 +79,7 @@ class Client:
         except (ValueError, TypeError):
             raise ValueError("failed to parse hex resolution")
 
-        client_order_id = params.client_order_id or self.internal_client.generate_uuid()
+        client_order_id = params.client_order_id or self.async_client.generate_uuid()
 
         # Calculate values
         value_dm = price * size
@@ -106,13 +99,13 @@ class Client:
         # Convert to the required integer format for the protocol
         amount_fee = int(amount_fee_dm * Decimal("1000000"))  # Shift 6 decimal places
 
-        nonce = self.internal_client.calc_nonce(client_order_id)
+        nonce = self.async_client.calc_nonce(client_order_id)
         l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)  # 14 days
 
         # Calculate signature using asset IDs from metadata
         expire_time_unix = l2_expire_time // (60 * 60 * 1000)
 
-        sig_hash = self.internal_client.calc_limit_order_hash(
+        sig_hash = self.async_client.calc_limit_order_hash(
             contract.get("starkExSyntheticAssetId", ""),
             collateral_coin.get("starkExAssetId", ""),
             collateral_coin.get("starkExAssetId", ""),
@@ -121,12 +114,12 @@ class Client:
             amount_collateral,
             amount_fee,
             nonce,
-            self.internal_client.get_account_id(),
+            self.async_client.get_account_id(),
             expire_time_unix
         )
 
         # Sign the order
-        sig = self.internal_client.sign(sig_hash)
+        sig = self.async_client.sign(sig_hash)
 
         # Convert signature to string (include v component like Go SDK, even though it's empty)
         sig_str = f"{sig.r}{sig.s}{sig.v if hasattr(sig, 'v') and sig.v else ''}"
@@ -134,7 +127,7 @@ class Client:
 
 
         # Create order request
-        account_id = str(self.internal_client.get_account_id())
+        account_id = str(self.async_client.get_account_id())
         nonce_str = str(nonce)
         l2_expire_time_str = str(l2_expire_time)
         expire_time_str = str(l2_expire_time - 864000000)  # 10 days earlier
@@ -162,26 +155,12 @@ class Client:
             "reduceOnly": params.reduce_only
         }
 
-        # Execute request
-        url = f"{self.base_url}/api/v1/private/order/createOrder"
-        response = self.session.post(url, json=request_data)
-
-        if response.status_code != 200:
-            try:
-                error_detail = response.json()
-                raise ValueError(f"request failed with status code: {response.status_code}, response: {error_detail}")
-            except:
-                raise ValueError(f"request failed with status code: {response.status_code}, response: {response.text}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="POST",
+            path="/api/v1/private/order/createOrder",
+            data=request_data
+        )
 
     async def cancel_order(self, params: CancelOrderParams) -> Dict[str, Any]:
         """
@@ -196,22 +175,22 @@ class Client:
         Raises:
             ValueError: If required parameters are missing or invalid
         """
-        account_id = str(self.internal_client.get_account_id())
+        account_id = str(self.async_client.get_account_id())
 
         if params.order_id:
-            url = f"{self.base_url}/api/v1/private/order/cancelOrderById"
+            path = "/api/v1/private/order/cancelOrderById"
             request_data = {
                 "accountId": account_id,
                 "orderIdList": [params.order_id]
             }
         elif params.client_id:
-            url = f"{self.base_url}/api/v1/private/order/cancelOrderByClientOrderId"
+            path = "/api/v1/private/order/cancelOrderByClientOrderId"
             request_data = {
                 "accountId": account_id,
                 "clientOrderIdList": [params.client_id]
             }
         elif params.contract_id:
-            url = f"{self.base_url}/api/v1/private/order/cancelAllOrder"
+            path = "/api/v1/private/order/cancelAllOrder"
             request_data = {
                 "accountId": account_id,
                 "filterContractIdList": [params.contract_id]
@@ -219,21 +198,12 @@ class Client:
         else:
             raise ValueError("must provide either order_id, client_id, or contract_id")
 
-        # Execute request
-        response = self.session.post(url, json=request_data)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="POST",
+            path=path,
+            data=request_data
+        )
 
     async def get_active_orders(self, params: GetActiveOrderParams) -> Dict[str, Any]:
         """
@@ -250,7 +220,7 @@ class Client:
         """
         # Build query parameters
         query_params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
         # Add pagination parameters
@@ -283,22 +253,12 @@ class Client:
         if params.filter_end_created_time_exclusive > 0:
             query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
 
-        # Execute request
-        url = f"{self.base_url}/api/v1/private/order/getActiveOrderPage"
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/order/getActiveOrderPage",
+            params=query_params
+        )
 
     async def get_order_fill_transactions(self, params: OrderFillTransactionParams) -> Dict[str, Any]:
         """
@@ -315,7 +275,7 @@ class Client:
         """
         # Build query parameters
         query_params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
         # Add pagination parameters
@@ -346,22 +306,12 @@ class Client:
         if params.filter_end_created_time_exclusive > 0:
             query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
 
-        # Execute request
-        url = f"{self.base_url}/api/v1/private/order/getHistoryOrderFillTransactionPage"
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/order/getHistoryOrderFillTransactionPage",
+            params=query_params
+        )
 
     async def get_max_order_size(self, contract_id: str, price: float) -> Dict[str, Any]:
         """
@@ -379,24 +329,14 @@ class Client:
         """
         # Build request body (API expects POST with JSON body)
         data = {
-            "accountId": str(self.internal_client.get_account_id()),
+            "accountId": str(self.async_client.get_account_id()),
             "contractId": contract_id,
             "price": str(price)
         }
 
-        # Execute request
-        url = f"{self.base_url}/api/v1/private/order/getMaxCreateOrderSize"
-        response = self.session.post(url, json=data)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="POST",
+            path="/api/v1/private/order/getMaxCreateOrderSize",
+            data=data
+        )

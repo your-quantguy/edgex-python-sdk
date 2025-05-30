@@ -24,32 +24,20 @@ class BasePublicEndpointTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class."""
-        # Create a StarkEx signing adapter
-        signing_adapter = StarkExSigningAdapter()
-        
-        # Create client with dummy values
-        # The account_id and stark_private_key won't be used for public endpoints
-        cls.client = Client(
-            base_url=BASE_URL,
-            account_id=0,  # Dummy value
-            stark_private_key="0" * 64,  # Dummy value
-            signing_adapter=signing_adapter
-        )
-        
         # Store test data
         cls.test_data = {}
 
     def run_async(self, coro):
         """
         Run an async coroutine in the current event loop.
-        
+
         Args:
             coro: The coroutine to run
-            
+
         Returns:
             Any: The result of the coroutine
         """
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return self.loop.run_until_complete(coro)
 
     def setUp(self):
         """Set up the test."""
@@ -57,8 +45,25 @@ class BasePublicEndpointTest(unittest.TestCase):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
+        # Create a fresh client for each test method
+        # Create a StarkEx signing adapter
+        signing_adapter = StarkExSigningAdapter()
+
+        # Create client with dummy values
+        # The account_id and stark_private_key won't be used for public endpoints
+        self.client = Client(
+            base_url=BASE_URL,
+            account_id=0,  # Dummy value
+            stark_private_key="0" * 64,  # Dummy value
+            signing_adapter=signing_adapter
+        )
+
     def tearDown(self):
         """Tear down the test."""
+        # Close client
+        if hasattr(self, 'client'):
+            self.run_async(self.client.close())
+
         # Close the event loop
         self.loop.close()
 

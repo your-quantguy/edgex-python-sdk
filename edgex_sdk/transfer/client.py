@@ -1,9 +1,6 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
-import requests
-
-from ..internal.client import Client as InternalClient
-from ..order.types import ResponseCode
+from ..internal.async_client import AsyncClient
 
 
 class GetTransferOutByIdParams:
@@ -78,17 +75,14 @@ class GetTransferInPageParams:
 class Client:
     """Client for transfer-related API endpoints."""
 
-    def __init__(self, internal_client: InternalClient, session: requests.Session):
+    def __init__(self, async_client: AsyncClient):
         """
         Initialize the transfer client.
 
         Args:
-            internal_client: The internal client for common functionality
-            session: The HTTP session for making requests
+            async_client: The async client for common functionality
         """
-        self.internal_client = internal_client
-        self.session = session
-        self.base_url = internal_client.base_url
+        self.async_client = async_client
 
     async def get_transfer_out_by_id(self, params: GetTransferOutByIdParams) -> Dict[str, Any]:
         """
@@ -103,26 +97,16 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/transfer/getTransferOutById"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id()),
+            "accountId": str(self.async_client.get_account_id()),
             "transferIdList": ",".join(params.transfer_id_list)
         }
 
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/transfer/getTransferOutById",
+            params=query_params
+        )
 
     async def get_transfer_in_by_id(self, params: GetTransferInByIdParams) -> Dict[str, Any]:
         """
@@ -137,26 +121,16 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/transfer/getTransferInById"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id()),
+            "accountId": str(self.async_client.get_account_id()),
             "transferIdList": ",".join(params.transfer_id_list)
         }
 
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/transfer/getTransferInById",
+            params=query_params
+        )
 
     async def get_withdraw_available_amount(self, params: GetWithdrawAvailableAmountParams) -> Dict[str, Any]:
         """
@@ -171,34 +145,24 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/transfer/getTransferOutAvailableAmount"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id()),
+            "accountId": str(self.async_client.get_account_id()),
             "coinId": params.coin_id
         }
 
-        response = self.session.get(url, params=query_params)
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/transfer/getTransferOutAvailableAmount",
+            params=query_params
+        )
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
-
-    async def create_transfer_out(self, params: CreateTransferOutParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_transfer_out(self, params: CreateTransferOutParams, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Create a new transfer out order.
 
         Args:
             params: Transfer out parameters
-            metadata: Exchange metadata
+            metadata: Exchange metadata (optional, not used in current implementation)
 
         Returns:
             Dict[str, Any]: The created transfer out order
@@ -206,12 +170,10 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/transfer/createTransferOut"
-
-        client_order_id = params.client_order_id or self.internal_client.generate_uuid()
+        client_order_id = params.client_order_id or self.async_client.generate_uuid()
 
         data = {
-            "accountId": str(self.internal_client.get_account_id()),
+            "accountId": str(self.async_client.get_account_id()),
             "coinId": params.coin_id,
             "amount": params.amount,
             "address": params.address,
@@ -231,20 +193,11 @@ class Client:
         # 5. Call to calc_transfer_hash and sign the result
         # For now, the API call is made without signature (may fail on actual server)
 
-        response = self.session.post(url, json=data)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="POST",
+            path="/api/v1/private/transfer/createTransferOut",
+            data=data
+        )
 
     async def get_transfer_out_page(
         self,
@@ -262,9 +215,8 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/transfer/getActiveTransferOut"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
         # Add pagination parameters
@@ -285,20 +237,11 @@ class Client:
         if params.filter_end_created_time_exclusive > 0:
             query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
 
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/transfer/getActiveTransferOut",
+            params=query_params
+        )
 
     async def get_transfer_in_page(
         self,
@@ -316,9 +259,8 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/transfer/getActiveTransferIn"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
         # Add pagination parameters
@@ -339,17 +281,8 @@ class Client:
         if params.filter_end_created_time_exclusive > 0:
             query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
 
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/transfer/getActiveTransferIn",
+            params=query_params
+        )

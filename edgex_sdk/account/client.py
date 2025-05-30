@@ -1,9 +1,6 @@
 from typing import Dict, Any, List, Optional
 
-import requests
-
-from ..internal.client import Client as InternalClient
-from ..order.types import ResponseCode
+from ..internal.async_client import AsyncClient
 
 
 class GetPositionTransactionPageParams:
@@ -77,17 +74,14 @@ class GetAccountAssetSnapshotPageParams:
 class Client:
     """Client for account-related API endpoints."""
 
-    def __init__(self, internal_client: InternalClient, session: requests.Session):
+    def __init__(self, async_client: AsyncClient):
         """
         Initialize the account client.
 
         Args:
-            internal_client: The internal client for common functionality
-            session: The HTTP session for making requests
+            async_client: The async client for common functionality
         """
-        self.internal_client = internal_client
-        self.session = session
-        self.base_url = internal_client.base_url
+        self.async_client = async_client
 
     async def get_account_asset(self) -> Dict[str, Any]:
         """
@@ -99,25 +93,15 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/account/getAccountAsset"
         params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
-        response = self.session.get(url, params=params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/account/getAccountAsset",
+            params=params
+        )
 
     async def get_account_positions(self) -> Dict[str, Any]:
         """
@@ -148,9 +132,8 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/account/getPositionTransactionPage"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
         # Add pagination parameters
@@ -169,20 +152,11 @@ class Client:
         if params.filter_end_created_time_exclusive > 0:
             query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
 
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/account/getPositionTransactionPage",
+            params=query_params
+        )
 
     async def get_collateral_transaction_page(self, params: GetCollateralTransactionPageParams) -> Dict[str, Any]:
         """
@@ -197,9 +171,8 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/account/getCollateralTransactionPage"
         query_params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
         # Add pagination parameters
@@ -214,20 +187,11 @@ class Client:
         if params.filter_end_created_time_exclusive > 0:
             query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
 
-        response = self.session.get(url, params=query_params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/account/getCollateralTransactionPage",
+            params=query_params
+        )
 
     async def get_position_term_page(self, params: GetPositionTermPageParams) -> Dict[str, Any]:
         """
@@ -288,25 +252,15 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/private/account/getAccountById"
         params = {
-            "accountId": str(self.internal_client.get_account_id())
+            "accountId": str(self.async_client.get_account_id())
         }
 
-        response = self.session.get(url, params=params)
-
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
-
-        resp_data = response.json()
-
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
-
-        return resp_data
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/account/getAccountById",
+            params=params
+        )
 
     async def get_account_deleverage_light(self) -> Dict[str, Any]:
         """

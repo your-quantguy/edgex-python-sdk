@@ -1,10 +1,10 @@
 # EdgeX Python SDK Requirements
 # Core dependencies for the EdgeX Python SDK
 
-# HTTP client for API requests
-requests>=2.25.0
+# Async HTTP client for API requests
+aiohttp>=3.8.0
 
-# WebSocket client for real-time data
+# WebSocket client for real-time data (will be replaced with aiohttp ws)
 websocket-client>=1.0.0
 
 # Data validation and serialization

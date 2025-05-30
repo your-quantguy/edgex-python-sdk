@@ -1,9 +1,6 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
-import requests
-
-from ..internal.client import Client as InternalClient
-from ..order.types import ResponseCode
+from ..internal.async_client import AsyncClient
 
 
 class GetKLineParams:
@@ -55,17 +52,14 @@ class GetMultiContractKLineParams:
 class Client:
     """Client for quote-related API endpoints."""
 
-    def __init__(self, internal_client: InternalClient, session: requests.Session):
+    def __init__(self, async_client: AsyncClient):
         """
         Initialize the quote client.
 
         Args:
-            internal_client: The internal client for common functionality
-            session: The HTTP session for making requests
+            async_client: The async client for common functionality
         """
-        self.internal_client = internal_client
-        self.session = session
-        self.base_url = internal_client.base_url
+        self.async_client = async_client
 
     async def get_quote_summary(self, contract_id: str) -> Dict[str, Any]:
         """
@@ -80,25 +74,38 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/quote/getTicketSummary"
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
+
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getTicketSummary"
         params = {
             "contractId": contract_id
         }
 
-        response = self.session.get(url, params=params)
+        try:
+            async with self.async_client.session.get(url, params=params) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+                resp_data = await response.json()
 
-        resp_data = response.json()
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                return resp_data
 
-        return resp_data
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")
 
     async def get_24_hour_quote(self, contract_id: str) -> Dict[str, Any]:
         """
@@ -113,25 +120,38 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/quote/getTicker"
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
+
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getTicker"
         params = {
             "contractId": contract_id
         }
 
-        response = self.session.get(url, params=params)
+        try:
+            async with self.async_client.session.get(url, params=params) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+                resp_data = await response.json()
 
-        resp_data = response.json()
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                return resp_data
 
-        return resp_data
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")
 
     async def get_k_line(self, params: GetKLineParams) -> Dict[str, Any]:
         """
@@ -146,7 +166,7 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/quote/getKline"
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getKline"
         query_params = {
             "contractId": params.contract_id,
             "interval": params.interval
@@ -164,20 +184,35 @@ class Client:
         if params.filter_end_time_exclusive > 0:
             query_params["filterEndTimeExclusive"] = str(params.filter_end_time_exclusive)
 
-        response = self.session.get(url, params=query_params)
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getKline"
 
-        resp_data = response.json()
+        try:
+            async with self.async_client.session.get(url, params=query_params) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                resp_data = await response.json()
 
-        return resp_data
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
+
+                return resp_data
+
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")
 
     async def get_order_book_depth(self, params: GetOrderBookDepthParams) -> Dict[str, Any]:
         """
@@ -192,26 +227,41 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/quote/getDepth"
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getDepth"
         query_params = {
             "contractId": params.contract_id,
             "level": str(params.limit)  # The API expects 'level', not 'limit'
         }
 
-        response = self.session.get(url, params=query_params)
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getDepth"
 
-        resp_data = response.json()
+        try:
+            async with self.async_client.session.get(url, params=query_params) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                resp_data = await response.json()
 
-        return resp_data
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
+
+                return resp_data
+
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")
 
     async def get_multi_contract_k_line(self, params: GetMultiContractKLineParams) -> Dict[str, Any]:
         """
@@ -226,24 +276,37 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/quote/getMultiContractKline"
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
+
+        url = f"{self.async_client.base_url}/api/v1/public/quote/getMultiContractKline"
         query_params = {
             "contractIdList": ",".join(params.contract_id_list),
             "interval": params.interval,
             "limit": str(params.limit)
         }
 
-        response = self.session.get(url, params=query_params)
+        try:
+            async with self.async_client.session.get(url, params=query_params) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+                resp_data = await response.json()
 
-        resp_data = response.json()
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                return resp_data
 
-        return resp_data
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")

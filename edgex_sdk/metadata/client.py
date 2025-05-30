@@ -1,25 +1,19 @@
 from typing import Dict, Any
 
-import requests
-
-from ..internal.client import Client as InternalClient
-from ..order.types import ResponseCode
+from ..internal.async_client import AsyncClient
 
 
 class Client:
     """Client for metadata-related API endpoints."""
 
-    def __init__(self, internal_client: InternalClient, session: requests.Session):
+    def __init__(self, async_client: AsyncClient):
         """
         Initialize the metadata client.
 
         Args:
-            internal_client: The internal client for common functionality
-            session: The HTTP session for making requests
+            async_client: The async client for common functionality
         """
-        self.internal_client = internal_client
-        self.session = session
-        self.base_url = internal_client.base_url
+        self.async_client = async_client
 
     async def get_metadata(self) -> Dict[str, Any]:
         """
@@ -31,21 +25,35 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/meta/getMetaData"
-        response = self.session.get(url)
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+        url = f"{self.async_client.base_url}/api/v1/public/meta/getMetaData"
 
-        resp_data = response.json()
+        try:
+            async with self.async_client.session.get(url) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                resp_data = await response.json()
 
-        return resp_data
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
+
+                return resp_data
+
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")
 
     async def get_server_time(self) -> Dict[str, Any]:
         """
@@ -57,18 +65,32 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
-        url = f"{self.base_url}/api/v1/public/meta/getServerTime"
-        response = self.session.get(url)
+        # Public endpoint - use simple GET request
+        await self.async_client._ensure_session()
 
-        if response.status_code != 200:
-            raise ValueError(f"request failed with status code: {response.status_code}")
+        url = f"{self.async_client.base_url}/api/v1/public/meta/getServerTime"
 
-        resp_data = response.json()
+        try:
+            async with self.async_client.session.get(url) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except:
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        if resp_data.get("code") != ResponseCode.SUCCESS:
-            error_param = resp_data.get("errorParam")
-            if error_param:
-                raise ValueError(f"request failed with error params: {error_param}")
-            raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                resp_data = await response.json()
 
-        return resp_data
+                if resp_data.get("code") != "SUCCESS":
+                    error_param = resp_data.get("errorParam")
+                    if error_param:
+                        raise ValueError(f"request failed with error params: {error_param}")
+                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
+
+                return resp_data
+
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"request failed: {str(e)}")
