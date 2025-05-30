@@ -89,13 +89,13 @@ async def main():
     positions = await client.get_account_positions()
     print(f"Account Positions: {positions}")
 
-    # Get 24-hour market data
-    quote = await client.get_24_hour_quote("BNB-USDT")
-    print(f"BNB-USDT Price: {quote}")
+    # Get 24-hour market data for BNBUSDT (contract ID: 10000004)
+    quote = await client.get_24_hour_quote("10000004")
+    print(f"BNBUSDT Price: {quote}")
 
     # Create a limit order (uncomment to place real order)
     # order = await client.create_limit_order(
-    #     contract_id="BNB-USDT",
+    #     contract_id="10000004",  # BNBUSDT
     #     size="0.01",
     #     price="600.00",
     #     side=OrderSide.BUY
@@ -203,9 +203,9 @@ async def main():
     # Connect to public WebSocket for market data
     ws_manager.connect_public()
 
-    # Subscribe to real-time updates
-    ws_manager.subscribe_ticker("BNB-USDT", ticker_handler)
-    ws_manager.subscribe_kline("BNB-USDT", "1m", kline_handler)
+    # Subscribe to real-time updates for BNBUSDT (contract ID: 10000004)
+    ws_manager.subscribe_ticker("10000004", ticker_handler)
+    ws_manager.subscribe_kline("10000004", "1m", kline_handler)
 
     # Connect to private WebSocket for account updates
     ws_manager.connect_private()
@@ -273,9 +273,9 @@ async def main():
     )
 
     try:
-        # Create a limit order
+        # Create a limit order for BNBUSDT
         order = await client.create_limit_order(
-            contract_id="BNB-USDT",
+            contract_id="10000004",  # BNBUSDT
             size="0.01",
             price="600.00",
             side=OrderSide.BUY
@@ -339,22 +339,22 @@ asyncio.run(main())
 ```python
 from edgex_sdk import Client, GetKLineParams, GetOrderBookDepthParams
 
-# Get 24-hour market quotes
-quote = await client.get_24_hour_quote("BNB-USDT")
+# Get 24-hour market quotes for BNBUSDT (contract ID: 10000004)
+quote = await client.get_24_hour_quote("10000004")
 print(f"Current price: {quote}")
 
-# Get K-line data
+# Get K-line data for BTCUSDT (contract ID: 10000001)
 kline_params = GetKLineParams(
-    contract_id="BNB-USDT",
+    contract_id="10000001",  # BTCUSDT
     interval="1m",
     size="10"
 )
 klines = await client.quote.get_k_line(kline_params)
 print(f"K-lines: {klines}")
 
-# Get order book depth
+# Get order book depth for ETHUSDT (contract ID: 10000002)
 depth_params = GetOrderBookDepthParams(
-    contract_id="BNB-USDT",
+    contract_id="10000002",  # ETHUSDT
     limit=10
 )
 depth = await client.quote.get_order_book_depth(depth_params)
@@ -387,17 +387,17 @@ print(f"Transactions: {transactions}")
 ```python
 from edgex_sdk import OrderSide, CreateOrderParams, CancelOrderParams
 
-# Create a limit order
+# Create a limit order for BNBUSDT
 order = await client.create_limit_order(
-    contract_id="BNB-USDT",
+    contract_id="10000004",  # BNBUSDT
     size="0.01",
     price="600.00",
     side=OrderSide.BUY
 )
 print(f"Order created: {order}")
 
-# Get maximum order size
-max_size = await client.get_max_order_size("BNB-USDT", 600.00)
+# Get maximum order size for BNBUSDT
+max_size = await client.get_max_order_size("10000004", 600.00)
 print(f"Max order size: {max_size}")
 
 # Cancel an order
@@ -406,6 +406,32 @@ cancel_params = CancelOrderParams(
 )
 cancel_result = await client.cancel_order(cancel_params)
 print(f"Order cancelled: {cancel_result}")
+```
+
+### Contract IDs
+
+EdgeX uses numeric contract IDs instead of symbol-based identifiers. Here are some common contract mappings:
+
+| Contract ID | Symbol      | Name         | Tick Size |
+|-------------|-------------|--------------|-----------|
+| 10000001    | BTCUSDT     | Bitcoin      | 0.1       |
+| 10000002    | ETHUSDT     | Ethereum     | 0.01      |
+| 10000003    | SOLUSDT     | Solana       | 0.001     |
+| 10000004    | BNBUSDT     | BNB          | 0.01      |
+| 10000005    | LTCUSDT     | Litecoin     | 0.01      |
+| 10000006    | LINKUSDT    | Chainlink    | 0.001     |
+| 10000007    | AVAX2USDT   | Avalanche    | 0.001     |
+| 10000008    | MATICUSDT   | Polygon      | 0.0001    |
+| 10000009    | XRPUSDT     | XRP          | 0.0001    |
+| 10000010    | DOGEUSDT    | Dogecoin     | 0.00001   |
+
+To get the complete list of available contracts:
+
+```python
+metadata = await client.get_metadata()
+contracts = metadata.get("data", {}).get("contractList", [])
+for contract in contracts:
+    print(f"ID: {contract['contractId']} - {contract['contractName']}")
 ```
 
 For more detailed examples, please refer to the [examples](examples) directory.
