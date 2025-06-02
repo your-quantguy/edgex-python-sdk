@@ -24,7 +24,7 @@ pip install edgex-python-sdk
 
 ```bash
 git clone https://github.com/edgex-Tech/edgex-python-sdk.git
-cd edgex-python-sdk/python_sdk
+cd edgex-python-sdk
 pip install -e .
 ```
 
@@ -68,8 +68,8 @@ from edgex_sdk import Client, OrderSide
 async def main():
     # Create a new client
     client = Client(
-        base_url="https://testnet.edgex.exchange",
-        account_id=542069824235241782,  # Your account ID
+        base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
+        account_id=12345,  # Your account ID
         stark_private_key="your-stark-private-key"  # Your private key
     )
 
@@ -89,13 +89,13 @@ async def main():
     positions = await client.get_account_positions()
     print(f"Account Positions: {positions}")
 
-    # Get 24-hour market data for BNBUSDT (contract ID: 10000004)
+    # Get 24-hour market data for BNB2USDT (contract ID: 10000004)
     quote = await client.get_24_hour_quote("10000004")
-    print(f"BNBUSDT Price: {quote}")
+    print(f"BNB2USDT Price: {quote}")
 
     # Create a limit order (uncomment to place real order)
     # order = await client.create_limit_order(
-    #     contract_id="10000004",  # BNBUSDT
+    #     contract_id="10000004",  # BNB2USDT
     #     size="0.01",
     #     price="600.00",
     #     side=OrderSide.BUY
@@ -188,8 +188,8 @@ from edgex_sdk import WebSocketManager
 async def main():
     # Create a WebSocket manager
     ws_manager = WebSocketManager(
-        base_url="wss://quote-testnet.edgex.exchange",
-        account_id=542069824235241782,
+        base_url="wss://quote.edgex.exchange",  # Use wss://quote-testnet.edgex.exchange for testnet
+        account_id=12345,
         stark_pri_key="your-stark-private-key"
     )
 
@@ -203,7 +203,7 @@ async def main():
     # Connect to public WebSocket for market data
     ws_manager.connect_public()
 
-    # Subscribe to real-time updates for BNBUSDT (contract ID: 10000004)
+    # Subscribe to real-time updates for BNB2USDT (contract ID: 10000004)
     ws_manager.subscribe_ticker("10000004", ticker_handler)
     ws_manager.subscribe_kline("10000004", "1m", kline_handler)
 
@@ -228,7 +228,7 @@ from edgex_sdk import Client
 
 # Create a client (uses StarkExSigningAdapter by default)
 client = Client(
-    base_url="https://testnet.edgex.exchange",
+    base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
     account_id=12345,
     stark_private_key="your-stark-private-key"
 )
@@ -244,7 +244,7 @@ signing_adapter = StarkExSigningAdapter()
 
 # Create a client with a custom signing adapter
 client = Client(
-    base_url="https://testnet.edgex.exchange",
+    base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
     account_id=12345,
     stark_private_key="your-stark-private-key",
     signing_adapter=signing_adapter
@@ -267,15 +267,15 @@ from edgex_sdk import Client, OrderSide
 
 async def main():
     client = Client(
-        base_url="https://testnet.edgex.exchange",
-        account_id=542069824235241782,
+        base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
+        account_id=12345,
         stark_private_key="your-stark-private-key"
     )
 
     try:
-        # Create a limit order for BNBUSDT
+        # Create a limit order for BNB2USDT
         order = await client.create_limit_order(
-            contract_id="10000004",  # BNBUSDT
+            contract_id="10000004",  # BNB2USDT
             size="0.01",
             price="600.00",
             side=OrderSide.BUY
@@ -308,8 +308,8 @@ from edgex_sdk import Client, GetActiveOrderParams
 
 async def main():
     client = Client(
-        base_url="https://testnet.edgex.exchange",
-        account_id=542069824235241782,
+        base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
+        account_id=12345,
         stark_private_key="your-stark-private-key"
     )
 
@@ -339,7 +339,7 @@ asyncio.run(main())
 ```python
 from edgex_sdk import Client, GetKLineParams, GetOrderBookDepthParams
 
-# Get 24-hour market quotes for BNBUSDT (contract ID: 10000004)
+# Get 24-hour market quotes for BNB2USDT (contract ID: 10000004)
 quote = await client.get_24_hour_quote("10000004")
 print(f"Current price: {quote}")
 
@@ -412,18 +412,11 @@ print(f"Order cancelled: {cancel_result}")
 
 EdgeX uses numeric contract IDs instead of symbol-based identifiers. Here are some common contract mappings:
 
-| Contract ID | Symbol      | Name         | Tick Size |
-|-------------|-------------|--------------|-----------|
-| 10000001    | BTCUSDT     | Bitcoin      | 0.1       |
-| 10000002    | ETHUSDT     | Ethereum     | 0.01      |
-| 10000003    | SOLUSDT     | Solana       | 0.001     |
-| 10000004    | BNBUSDT     | BNB          | 0.01      |
-| 10000005    | LTCUSDT     | Litecoin     | 0.01      |
-| 10000006    | LINKUSDT    | Chainlink    | 0.001     |
-| 10000007    | AVAX2USDT   | Avalanche    | 0.001     |
-| 10000008    | MATICUSDT   | Polygon      | 0.0001    |
-| 10000009    | XRPUSDT     | XRP          | 0.0001    |
-| 10000010    | DOGEUSDT    | Dogecoin     | 0.00001   |
+| Contract ID | Symbol        | Tick Size |
+|-------------|---------------|-----------|
+| 10000001    | BTCUSDT       | 0.1       |
+| 10000002    | ETHUSDT       | 0.01      |
+| 10000003    | SOLUSDT       | 0.01      |
 
 To get the complete list of available contracts:
 
@@ -478,11 +471,11 @@ For testing and development, you can set the following environment variables or 
 
 ```bash
 # API Configuration
-EDGEX_BASE_URL=https://testnet.edgex.exchange
-EDGEX_WS_URL=wss://quote-testnet.edgex.exchange
+EDGEX_BASE_URL=https://pro.edgex.exchange  # Use https://testnet.edgex.exchange for testnet
+EDGEX_WS_URL=wss://quote.edgex.exchange    # Use wss://quote-testnet.edgex.exchange for testnet
 
 # Account Credentials
-EDGEX_ACCOUNT_ID=542069824235241782
+EDGEX_ACCOUNT_ID=12345
 EDGEX_STARK_PRIVATE_KEY=your-stark-private-key
 
 # Signing Configuration
