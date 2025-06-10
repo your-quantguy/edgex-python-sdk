@@ -70,11 +70,33 @@ To run the example:
 python advanced_usage.py
 ```
 
+## Contract IDs
+
+EdgeX uses numeric contract IDs instead of symbol-based identifiers. Here are some common contract mappings:
+
+| Contract ID | Symbol        | Tick Size |
+|-------------|---------------|-----------|
+| 10000001    | BTCUSDT       | 0.1       |
+| 10000002    | ETHUSDT       | 0.01      |
+| 10000003    | SOLUSDT       | 0.01      |
+| 10000004    | BNBUSDT       | 0.01      |
+
+To get the complete list of available contracts:
+
+```python
+metadata = await client.get_metadata()
+contracts = metadata.get("data", {}).get("contractList", [])
+for contract in contracts:
+    print(f"ID: {contract['contractId']} - {contract['contractName']}")
+```
+
 ## Notes
 
 - The examples include order creation code that is commented out to avoid creating actual orders. Uncomment this code if you want to create real orders.
 - The WebSocket examples will run for a short time and then disconnect. Adjust the sleep time if you want to receive more updates.
 - The examples use asyncio for asynchronous operations. Make sure you're using Python 3.7 or later.
+- All examples use numeric contract IDs (e.g., "10000001" for BTCUSDT) as required by the EdgeX API.
+- For order book depth queries, valid limit values are 15 or 200.
 
 ## Customization
 

@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Set the mock signing adapter in the environment
-os.environ["EDGEX_SIGNING_ADAPTER"] = "mock"
+# os.environ["EDGEX_SIGNING_ADAPTER"] = "mock"
 
 # Log information about the mock tests
 logger.info("Running integration tests with the mock signing adapter.")

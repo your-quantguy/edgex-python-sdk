@@ -94,7 +94,8 @@ class EdgeXTrader:
             
             # Get account positions
             positions_response = await self.client.get_account_positions()
-            position_list = positions_response.get("data", [])
+            positions_data = positions_response.get("data", {})
+            position_list = positions_data.get("positionList", [])
             for position in position_list:
                 contract_id = position.get("contractId")
                 if contract_id:
@@ -158,12 +159,12 @@ class EdgeXTrader:
             # Subscribe to position updates
             self.ws_manager.subscribe_position_update(self.handle_position_update)
             logger.info("Subscribed to position updates")
-            
-            # Subscribe to market data for BTC-USDT
-            self.ws_manager.subscribe_ticker("BTC-USDT", self.handle_ticker_update)
-            self.ws_manager.subscribe_kline("BTC-USDT", "1m", self.handle_kline_update)
-            self.ws_manager.subscribe_depth("BTC-USDT", self.handle_depth_update)
-            logger.info("Subscribed to market data for BTC-USDT")
+
+            # Subscribe to market data for BTCUSDT (contract ID: 10000001)
+            self.ws_manager.subscribe_ticker("10000001", self.handle_ticker_update)
+            self.ws_manager.subscribe_kline("10000001", "1m", self.handle_kline_update)
+            self.ws_manager.subscribe_depth("10000001", self.handle_depth_update)
+            logger.info("Subscribed to market data for BTCUSDT (10000001)")
             
             return True
         
@@ -243,8 +244,16 @@ class EdgeXTrader:
             data = json.loads(message)
             
             # Extract ticker data
-            ticker_data = data.get("content", {}).get("data", {})
-            contract_id = ticker_data.get("contractId")
+            content = data.get("content", {})
+            ticker_data_list = content.get("data", [])
+
+            # Handle both single ticker and list of tickers
+            if isinstance(ticker_data_list, list) and ticker_data_list:
+                ticker_data = ticker_data_list[0]  # Take the first ticker
+            else:
+                ticker_data = ticker_data_list
+
+            contract_id = ticker_data.get("contractId") if isinstance(ticker_data, dict) else None
             
             if contract_id:
                 if "ticker" not in self.market_data:
@@ -540,14 +549,14 @@ class EdgeXTrader:
     async def get_order_book_depth(
         self,
         contract_id: str,
-        limit: int = 50
+        limit: int = 15
     ) -> Dict[str, Any]:
         """
         Get order book depth.
         
         Args:
             contract_id: The contract ID
-            limit: The depth limit
+            limit: The depth limit (valid values are 15 or 200)
             
         Returns:
             Dict[str, Any]: The order book depth
@@ -597,7 +606,7 @@ async def main():
     """Main function."""
     # Load configuration from environment variables
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
-    ws_url = os.getenv("EDGEX_WS_URL", "wss://testnet.edgex.exchange")
+    ws_url = os.getenv("EDGEX_WS_URL", "wss://quote-testnet.edgex.exchange")
     account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "12345"))
     stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your-stark-private-key")
     
@@ -615,25 +624,25 @@ async def main():
         return
     
     try:
-        # Get K-line data
-        klines = await trader.get_k_line("BTC-USDT", "1m")
-        
-        # Get order book depth
-        depth = await trader.get_order_book_depth("BTC-USDT")
-        
+        # Get K-line data for BTCUSDT (contract ID: 10000001)
+        klines = await trader.get_k_line("10000001", "1m")
+        logger.info(f"Retrieved K-line data: {len(klines.get('data', {}).get('list', []))} entries")
+
+        # Get order book depth for BTCUSDT (contract ID: 10000001)
+        await trader.get_order_book_depth("10000001")
+        logger.info(f"Retrieved order book depth")
+
         # Create a limit order (commented out to avoid actual order creation)
-        """
-        order = await trader.create_limit_order(
-            contract_id="BTC-USDT",
-            size="0.001",
-            price="30000",
-            side=OrderSide.BUY
-        )
-        
-        # Cancel the order
-        if order and order.get("data", {}).get("orderId"):
-            await trader.cancel_order(order.get("data", {}).get("orderId"))
-        """
+        # order = await trader.create_limit_order(
+        #     contract_id="10000001",  # BTCUSDT
+        #     size="0.001",
+        #     price="30000",
+        #     side=OrderSide.BUY
+        # )
+        #
+        # # Cancel the order
+        # if order and order.get("data", {}).get("orderId"):
+        #     await trader.cancel_order(order.get("data", {}).get("orderId"))
         
         # Wait for some WebSocket updates
         logger.info("Waiting for WebSocket updates...")

@@ -26,7 +26,7 @@ if not env_status["all_set"]:
     sys.exit(1)
 
 # Set the StarkEx signing adapter in the environment
-os.environ["EDGEX_SIGNING_ADAPTER"] = "starkex"
+# os.environ["EDGEX_SIGNING_ADAPTER"] = "starkex"
 
 # Log information about the signing adapter
 logger.info("Running integration tests with the StarkEx signing adapter.")
