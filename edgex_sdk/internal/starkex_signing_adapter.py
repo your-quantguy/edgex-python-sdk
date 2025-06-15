@@ -6,11 +6,9 @@ that uses the StarkWare cryptographic primitives for signing operations.
 """
 
 import binascii
-import hashlib
 import math
+import secrets
 from typing import List, Tuple
-
-from ecdsa.rfc6979 import generate_k
 
 from .signing_adapter import SigningAdapter
 from ..crypto.pedersen_hash import pedersen_hash_bytes
@@ -188,8 +186,8 @@ class StarkExSigningAdapter(SigningAdapter):
         # and there is a negligible probability a drawn k cannot be used for signing.
         # This is why we have this loop.
         while True:
-            # Use deterministic nonce generation (RFC 6979) like the Go SDK
-            k = self._generate_k_rfc6979(msg_hash, priv_key)
+            # Use random nonce generation like the Go SDK
+            k = self._generate_random_k()
 
             # Cannot fail because 0 < k < EC_ORDER and EC_ORDER is prime.
             x = self._ec_mult(k, EC_GEN)[0]
@@ -276,29 +274,16 @@ class StarkExSigningAdapter(SigningAdapter):
 
         return False
 
-    def _generate_k_rfc6979(self, msg_hash: int, priv_key: int) -> int:
+    def _generate_random_k(self) -> int:
         """
-        Generate a deterministic k value using RFC 6979.
-
-        Args:
-            msg_hash: The hash of the message as an integer
-            priv_key: The private key as an integer
+        Generate a cryptographically secure random k value.
 
         Returns:
-            int: The generated k value
+            int: The generated k value in range [1, EC_ORDER)
         """
-        # Pad the message hash, for consistency with the elliptic.js library.
-        if 1 <= msg_hash.bit_length() % 8 <= 4 and msg_hash.bit_length() >= 248:
-            # Only if we are one-nibble short:
-            msg_hash *= 16
-
-        return generate_k(
-            EC_ORDER,
-            priv_key,
-            hashlib.sha256,
-            msg_hash.to_bytes(math.ceil(msg_hash.bit_length() / 8), 'big'),
-            extra_entropy=b''
-        )
+        # Generate a cryptographically secure random number in the range [1, EC_ORDER)
+        # This matches the Go implementation's approach of using random nonces
+        return secrets.randbelow(EC_ORDER - 1) + 1
 
     def _private_to_stark_key(self, priv_key: int) -> int:
         """
