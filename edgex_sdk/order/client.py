@@ -1,3 +1,4 @@
+import math
 import time
 from decimal import Decimal
 from typing import Dict, Any, Optional, List
@@ -92,8 +93,8 @@ class Client:
         except (ValueError, TypeError):
             raise ValueError("failed to parse fee rate")
 
-        # Calculate fee amount in decimal with 6 decimal places
-        amount_fee_dm = (value_dm * fee_rate).quantize(Decimal("0.000001"))
+        # Calculate fee amount in decimal with ceiling to integer
+        amount_fee_dm = Decimal(str(math.ceil(float(value_dm * fee_rate))))
         amount_fee_str = str(amount_fee_dm)
 
         # Convert to the required integer format for the protocol
