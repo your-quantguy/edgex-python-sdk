@@ -159,7 +159,8 @@ class Client:
         size: str,
         price: str,
         side: str,
-        client_order_id: Optional[str] = None
+        client_order_id: Optional[str] = None,
+        post_only: bool = False
     ) -> Dict[str, Any]:
         """
         Create a new limit order with the given parameters.
@@ -170,11 +171,15 @@ class Client:
             price: The order price
             side: The order side (BUY or SELL)
             client_order_id: Optional client order ID
+            post_only: If True, order will be post-only (maker only)
 
         Returns:
             Dict[str, Any]: The created order
         """
-        from .order.types import OrderType
+        from .order.types import OrderType, TimeInForce
+
+        # Set time_in_force based on post_only parameter
+        time_in_force = TimeInForce.POST_ONLY if post_only else TimeInForce.GOOD_TIL_CANCEL
 
         params = CreateOrderParams(
             contract_id=contract_id,
@@ -182,7 +187,8 @@ class Client:
             price=price,
             side=side,
             type=OrderType.LIMIT,
-            client_order_id=client_order_id
+            client_order_id=client_order_id,
+            time_in_force=time_in_force
         )
 
         return await self.create_order(params)
