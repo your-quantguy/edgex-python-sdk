@@ -341,3 +341,41 @@ class Client:
             path="/api/v1/private/order/getMaxCreateOrderSize",
             data=data
         )
+
+    async def get_order_by_id(
+        self, 
+        order_id_list: Optional[List[str]] = None, 
+        account_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get orders by account ID and order IDs (batch).
+
+        Args:
+            order_id_list: List of order IDs to retrieve. If None, retrieves all orders for the account.
+            account_id: Account ID. If None, uses the current client's account ID.
+
+        Returns:
+            Dict[str, Any]: The orders matching the criteria
+
+        Raises:
+            ValueError: If the request fails
+        """
+        # Build query parameters
+        query_params = {}
+        
+        # Use provided account_id or default to current client's account ID
+        if account_id:
+            query_params["accountId"] = account_id
+        else:
+            query_params["accountId"] = str(self.async_client.get_account_id())
+        
+        # Add order ID list if provided
+        if order_id_list:
+            query_params["orderIdList"] = ",".join(order_id_list)
+
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/order/getOrderById",
+            params=query_params
+        )
