@@ -101,7 +101,7 @@ class Client:
         amount_fee = int(amount_fee_dm * Decimal("1000000"))  # Shift 6 decimal places
 
         nonce = self.async_client.calc_nonce(client_order_id)
-        l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)  # 14 days
+        l2_expire_time = int(time.time() * 1000) + (60 * 24 * 60 * 60 * 1000)  # 60 days
 
         # Calculate signature using asset IDs from metadata
         expire_time_unix = l2_expire_time // (60 * 60 * 1000)
